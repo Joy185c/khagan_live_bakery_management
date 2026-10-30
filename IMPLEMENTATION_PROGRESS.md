@@ -29,14 +29,15 @@
   - `/admin/expenses` -> Operating & Utility Costing (Rent, Gas, Electricity, Water, Maintenance), Expense Categories, Approvals
   - `/admin/workforce` -> Employee Registry, Shifts, Attendance, Payroll Processing (Salary, Overtime, Advances, Deductions)
   - `/admin/reports` -> Comprehensive Financial & Operational Analytics (Sales, Production, Yield, Waste, Gross/Operating Profit, COGS, Cash Flow)
+  - `/admin/import` -> Excel Bulk Migration & Data Import (Products, Raw Materials, Suppliers, Employees) with live validation
   - `/admin/settings` -> Organizations, Branches, Locations, Roles & Permissions, Unit Conversions, System Settings, Audit Logs
 - **Shop / Cashier Portal (`/shop`)**:
-  - `/shop` -> Touch-first POS: Fast Category Filter, Barcode/Text Search, Cart, Multi-tender / Split Payment, Instant Receipt Printing
+  - `/shop` -> Touch-first POS: Fast Category Filter, Barcode/Text Search, Hardware Scanner Listener, Cart, Multi-tender / Split Payment, Instant Thermal Receipt Printing
   - `/shop/sales` -> Shift Sales History, Authorized Receipt Reprint, Customer Refund Management
   - `/shop/stock` -> Real-time Available Shop Stock, Incoming Inter-location Transfers (Acknowledge & Receive)
   - `/shop/waste` -> Shop Spoilage & Damaged Goods Registration with Reason & Authorization
-  - `/shop/cash` -> Shift Management: Opening Float, Cash Sales, Payouts, Drop/Deposit, Shift Close & Cash Count Reconciliation
-  - `/shop/settings` -> POS Terminal Preferences, Thermal Printer Settings, Language Switcher
+  - `/shop/cash` -> Shift Management: Opening Float, Cash Sales, Payouts, Drop/Deposit, Shift Close & Blind Count Cash Reconciliation
+  - `/shop/settings` -> POS Terminal Preferences, Thermal Printer Settings (80mm / 58mm), Language Switcher
 
 ---
 
@@ -96,6 +97,7 @@
 - [x] **Phase 4: Shop POS & Cash Management**
   - Touch-optimized POS checkout: Fast category pill filters, live stock indicator, cart management.
   - Payment Processing: Cash, bKash, Nagad, Rocket, Cards, Split tender.
+  - Hardware Barcode Scanner integration (`useBarcodeScanner` hook).
   - Thermal 80mm / 58mm Receipt Generation with bilingual Bangla/English typography.
   - Sales Returns & Exchanges with stock recovery logic.
   - Shift / Register Cash Sessions: Opening Float, Cash Drops/Payouts, Blind Count, Shift Closing & Variance Report.
@@ -113,11 +115,13 @@
   - Production yield reports, ingredient consumption variance, and spoilage analytics.
   - Comprehensive report exports (Excel `.xlsx` generation via SheetJS, Print-ready thermal formatting).
 
-- [x] **Phase 7: Security Audit, Hardening & Acceptance Verification**
+- [x] **Phase 7: Security Audit, Hardening & Handover**
   - Verification of all 12 mandatory acceptance criteria.
-  - End-to-end automated test suite execution (12/12 passing).
-  - Production build verification (`npx next build` passes with 21 static routes).
-  - Deployment instructions, `.env.example`, and operational user documentation (`README.md`).
+  - Excel bulk migration tool (`/admin/import`) with downloadable templates and validation.
+  - PWA manifest (`public/manifest.json`) for tablet kiosk installation.
+  - Role-specific security audit tests (`src/__tests__/security_rbac.test.ts`).
+  - Production build verification (`npx next build` passes with 22 static routes).
+  - Deployment guide (`DEPLOYMENT.md`), Backup & Disaster Recovery Plan (`BACKUP_RECOVERY_PLAN.md`), and automated seed script (`supabase/seed.sql`).
 
 ---
 
