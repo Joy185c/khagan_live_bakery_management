@@ -87,3 +87,4 @@ git push -u origin main
    - Cashier counts drawer cash blindly and enters amount in `/shop/cash`.
    - Manager verifies discrepancy report and closes shift.
    - Manager visits `/admin/spreadsheet` and confirms sync with Google Sheets / downloads daily Excel backup.
+

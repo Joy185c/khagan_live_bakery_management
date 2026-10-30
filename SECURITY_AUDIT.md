@@ -68,3 +68,4 @@ All 17 critical tables in PostgreSQL have Row Level Security explicitly enabled 
    - *Mitigation*: Every checkout request accepts an `idempotencyKey`. Repeated network retries return the original committed invoice rather than debiting inventory twice.
 3. **Privilege Escalation**:
    - *Mitigation*: Frontend role switches are restricted to testing modes; all production database mutations verify the caller's JWT role via `auth_user_role()`.
+

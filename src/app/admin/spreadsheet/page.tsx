@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDatabase } from '@/lib/db/store';
 import { useTranslation } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
 import {
   FileSpreadsheet,
   RefreshCw,
@@ -14,11 +16,16 @@ import {
   CheckCircle2,
   Clock,
   Layers,
-  ExternalLink,
   ShieldCheck,
   FileText,
   HelpCircle,
   RotateCcw,
+  Settings,
+  Upload,
+  Link2,
+  Key,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 export default function SpreadsheetBackupPage() {
@@ -49,9 +56,38 @@ export default function SpreadsheetBackupPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'failed' | 'completed'>('all');
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 
+  // Admin Direct Config Modal State
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [spreadsheetInput, setSpreadsheetInput] = useState('');
+  const [serviceAccountEmail, setServiceAccountEmail] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; title?: string } | null>(null);
+  const [activeConfig, setActiveConfig] = useState<{
+    spreadsheetId: string;
+    serviceAccountEmail: string;
+    hasPrivateKey: boolean;
+    isConfigured: boolean;
+  } | null>(null);
+
+  // Fetch current config status from server
+  useEffect(() => {
+    fetch('/api/spreadsheet/config')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data) {
+          setActiveConfig(data);
+          if (data.spreadsheetId) setSpreadsheetInput(data.spreadsheetId);
+          if (data.serviceAccountEmail) setServiceAccountEmail(data.serviceAccountEmail);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const pendingCount = spreadsheetOutbox.filter((i) => i.status === 'pending').length;
   const failedCount = spreadsheetOutbox.filter((i) => i.status === 'failed').length;
-  const completedCount = spreadsheetOutbox.filter((i) => i.status === 'completed').length;
 
   const filteredLogs = spreadsheetOutbox.filter((item) => {
     if (activeTab === 'all') return true;
@@ -174,6 +210,116 @@ export default function SpreadsheetBackupPage() {
     }
   };
 
+  // 5. Handle Service Account JSON Upload
+  const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json.client_email) setServiceAccountEmail(json.client_email);
+        if (json.private_key) setPrivateKey(json.private_key);
+        setTestResult({
+          success: true,
+          message: locale === 'bn' ? 'সার্ভিস অ্যাকাউন্ট JSON থেকে ইমেইল ও প্রাইভেট কী সফলভাবে লোড হয়েছে।' : 'Service account credentials loaded from JSON file.',
+        });
+      } catch {
+        setTestResult({
+          success: false,
+          message: locale === 'bn' ? 'অবৈধ JSON ফাইল! সঠিক Service Account JSON ফাইল আপলোড করুন।' : 'Invalid JSON file format.',
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 6. Test Live Google Connection
+  const handleTestConnection = async () => {
+    if (!spreadsheetInput || !serviceAccountEmail) {
+      setTestResult({
+        success: false,
+        message: locale === 'bn' ? 'Spreadsheet ID এবং Service Account Email পূরণ করুন।' : 'Spreadsheet ID and Service Account Email are required.',
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/spreadsheet/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spreadsheetId: spreadsheetInput,
+          serviceAccountEmail,
+          privateKey,
+        }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || 'Connection test failed' });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  // 7. Save Credentials directly from Admin Panel
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/spreadsheet/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spreadsheetId: spreadsheetInput,
+          serviceAccountEmail,
+          privateKey,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedback({
+          type: 'success',
+          message: locale === 'bn' ? 'গুগল স্প্রেডশিট কনফিগারেশন সফলভাবে সংরক্ষিত হয়েছে!' : 'Google Spreadsheet credentials saved successfully!',
+        });
+        setActiveConfig({
+          spreadsheetId: spreadsheetInput,
+          serviceAccountEmail,
+          hasPrivateKey: true,
+          isConfigured: true,
+        });
+        setIsConfigModalOpen(false);
+      } else {
+        setTestResult({
+          success: false,
+          message: data.message,
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || 'Save failed',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Copy email to clipboard helper
+  const handleCopyEmail = () => {
+    if (!serviceAccountEmail) return;
+    navigator.clipboard.writeText(serviceAccountEmail);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
+  const isActuallyConnected = Boolean(activeConfig?.isConfigured);
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -194,6 +340,16 @@ export default function SpreadsheetBackupPage() {
 
         {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Direct Admin Config Modal Button */}
+          <Button
+            size="sm"
+            onClick={() => setIsConfigModalOpen(true)}
+            className="text-xs bg-[#104C34] hover:bg-[#176B45] text-white shadow-sm font-semibold"
+          >
+            <Settings className="w-3.5 h-3.5 mr-1" />
+            {locale === 'bn' ? 'গুগল শিট কনফিগার করুন' : 'Configure Google Sheets'}
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -277,8 +433,8 @@ export default function SpreadsheetBackupPage() {
           <CardContent className="space-y-3 text-xs text-[#172B22]">
             <p>
               {locale === 'bn'
-                ? 'সরাসরি গুগল শিটে স্বয়ংক্রিয় ব্যাকআপের জন্য আপনার Google Cloud Console থেকে একটি Service Account তৈরি করুন:'
-                : 'To enable live bidirectional background sync with your real Google Spreadsheet, configure a Google Cloud Service Account:'}
+                ? 'এখন সরাসরি এই অ্যাডমিন প্যানেল থেকেই সার্ভিস অ্যাকাউন্ট JSON আপলোড করে স্প্রেডশিট সেটআপ করতে পারবেন:'
+                : 'You can now configure your Google Spreadsheet directly from this Admin Panel by uploading your JSON key:'}
             </p>
             <ol className="list-decimal pl-5 space-y-1.5 font-medium text-[#2E4A3B]">
               <li>
@@ -288,23 +444,15 @@ export default function SpreadsheetBackupPage() {
                 একটি <strong>Service Account</strong> তৈরি করে তার JSON Key ডাউনলোড করুন।
               </li>
               <li>
-                আপনার প্রজেক্টের <code>.env.local</code> ফাইলে নিচের ভেরিয়েবলগুলো যুক্ত করুন:
-                <pre className="mt-1 p-2 bg-white rounded border border-emerald-200 font-mono text-[11px] overflow-x-auto text-[#104C34]">
-                  GOOGLE_SERVICE_ACCOUNT_EMAIL="your-service-account@project.iam.gserviceaccount.com"&#10;
-                  GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"&#10;
-                  GOOGLE_SPREADSHEET_ID="your_google_sheet_id_from_url"
-                </pre>
+                উপরের <strong>&quot;{locale === 'bn' ? 'গুগল শিট কনফিগার করুন' : 'Configure Google Sheets'}&quot;</strong> বাটনে ক্লিক করে JSON ফাইলটি আপলোড করুন।
               </li>
               <li>
-                আপনার গুগল স্প্রেডশিটটিতে Service Account Email-কে <strong>Editor</strong> হিসেবে Share করুন।
+                আপনার গুগল স্প্রেডশিটের <strong>Share</strong> অপশনে সার্ভিস অ্যাকাউন্ট ইমেইলটিকে <strong>Editor</strong> হিসেবে যোগ করুন।
               </li>
               <li>
-                উপরের <strong>&quot;{t.spreadsheet.reconcile}&quot;</strong> বাটনে চাপ দিন—তৎক্ষণাৎ ১৩টি শিট স্বয়ংক্রিয়ভাবে তৈরি হয়ে যাবে!
+                <strong>&quot;{t.spreadsheet.reconcile}&quot;</strong> বাটনে চাপ দিন—১৩টি শিট ও সমস্ত ডাটা লাইভ হয়ে যাবে!
               </li>
             </ol>
-            <p className="text-[11px] text-[#5C7567] italic">
-              * নোট: গুগল ক্রেডেনশিয়াল দেওয়া না থাকলেও অ্যাপ্লিকেশন সম্পূর্ণ অফলাইনে চলে এবং ১৩টি শিটের এক্সেল ব্যাকআপ ডাউনলোড করা যায়।
-            </p>
           </CardContent>
         </Card>
       )}
@@ -321,12 +469,15 @@ export default function SpreadsheetBackupPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-bold text-sm text-[#172B22] truncate max-w-[170px]" title="Khagan Live Bakery - Live ERP Data">
-                  Khagan Live Bakery ERP
+                <p className="font-bold text-sm text-[#172B22] truncate max-w-[170px]" title={activeConfig?.spreadsheetId || 'Not Configured'}>
+                  {activeConfig?.spreadsheetId ? `ID: ${activeConfig.spreadsheetId.slice(0, 15)}...` : 'Not Configured'}
                 </p>
-                <span className="text-[10px] text-[#5C7567] flex items-center gap-1 mt-0.5">
-                  13 Worksheets Configured
-                </span>
+                <button
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="text-[11px] text-[#176B45] font-semibold hover:underline mt-0.5 block"
+                >
+                  {isActuallyConnected ? (locale === 'bn' ? 'সেটিংস পরিবর্তন করুন' : 'Change Settings') : (locale === 'bn' ? '+ এখানে যুক্ত করুন' : '+ Connect Now')}
+                </button>
               </div>
               <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#176B45] flex items-center justify-center">
                 <FileSpreadsheet className="w-4 h-4" />
@@ -345,15 +496,18 @@ export default function SpreadsheetBackupPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <Badge className="bg-emerald-100 text-[#104C34] border border-emerald-300 hover:bg-emerald-100 font-semibold text-xs">
-                  {t.spreadsheet.connected}
+                <Badge
+                  variant="default"
+                  className={isActuallyConnected ? 'bg-emerald-100 text-[#104C34] border-emerald-300' : 'bg-amber-100 text-amber-900 border-amber-300'}
+                >
+                  {isActuallyConnected ? t.spreadsheet.connected : (locale === 'bn' ? 'সেটআপ প্রয়োজন' : 'Setup Required')}
                 </Badge>
                 <p className="text-[10px] text-[#5C7567] mt-1">
-                  Transactional Outbox Active
+                  {isActuallyConnected ? 'Live Cloud Sync Active' : 'Running in Local Mode'}
                 </p>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActuallyConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                {isActuallyConnected ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
               </div>
             </div>
           </CardContent>
@@ -581,6 +735,149 @@ export default function SpreadsheetBackupPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ========================================================================= */}
+      {/* DIRECT ADMIN CONFIGURATION MODAL */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        title={locale === 'bn' ? 'গুগল স্প্রেডশিট সরাসরি কনফিগারেশন' : 'Configure Google Spreadsheet'}
+        description={locale === 'bn' ? 'সার্ভিস অ্যাকাউন্ট JSON আপলোড করুন অথবা সরাসরি লিঙ্ক ও ক্রেডেনশিয়াল প্রদান করুন।' : 'Upload Service Account JSON or provide sheet link and credentials.'}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveConfig} className="space-y-4">
+          {/* Quick Upload Box */}
+          <div className="p-3.5 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 text-center space-y-1.5">
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#104C34]">
+              <Upload className="w-4 h-4 text-[#176B45]" />
+              <span>{locale === 'bn' ? 'Google Service Account JSON ফাইল আপলোড করুন (১-ক্লিক)' : 'Upload Service Account JSON File (1-Click)'}</span>
+            </div>
+            <p className="text-[11px] text-[#5C7567]">
+              {locale === 'bn' ? 'গুগল ক্লাউড থেকে ডাউনলোড করা .json ফাইলটি সিলেক্ট করলে ইমেইল ও কী স্বয়ংক্রিয়ভাবে বসে যাবে।' : 'Selecting the downloaded .json file auto-populates Email and Private Key.'}
+            </p>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleJsonFileUpload}
+              className="text-xs file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#176B45] file:text-white hover:file:bg-[#104C34] cursor-pointer"
+            />
+          </div>
+
+          {/* Test Status Alert */}
+          {testResult && (
+            <div
+              className={`p-3 rounded-lg text-xs flex items-start gap-2 ${
+                testResult.success ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-rose-50 text-rose-900 border border-rose-200'
+              }`}
+            >
+              {testResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+              <div>
+                <p className="font-semibold">{testResult.message}</p>
+                {testResult.title && <p className="text-[11px] mt-0.5 text-emerald-700">Spreadsheet Name: &quot;{testResult.title}&quot;</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Field 1: Spreadsheet URL or ID */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#172B22] flex items-center gap-1">
+              <Link2 className="w-3.5 h-3.5 text-[#176B45]" />
+              <span>{locale === 'bn' ? 'Google Spreadsheet URL বা Sheet ID *' : 'Google Spreadsheet URL or Sheet ID *'}</span>
+            </label>
+            <Input
+              value={spreadsheetInput}
+              onChange={(e) => setSpreadsheetInput(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs.../edit অথবা Sheet ID"
+              className="text-xs font-mono"
+              required
+            />
+            <p className="text-[10px] text-[#5C7567]">
+              {locale === 'bn' ? 'টিপ: পুরো গুগল শিটের ব্রাউজার লিঙ্ক সরাসরি পেস্ট করতে পারেন।' : 'Tip: You can paste the entire Google Sheets browser URL directly.'}
+            </p>
+          </div>
+
+          {/* Field 2: Service Account Email */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-[#172B22]">
+                {locale === 'bn' ? 'Service Account Email *' : 'Service Account Email *'}
+              </label>
+              {serviceAccountEmail && (
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="text-[11px] text-[#176B45] hover:underline flex items-center gap-1"
+                >
+                  {copiedEmail ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedEmail ? (locale === 'bn' ? 'কপি হয়েছে' : 'Copied!') : (locale === 'bn' ? 'ইমেইল কপি করুন' : 'Copy Email')}</span>
+                </button>
+              )}
+            </div>
+            <Input
+              value={serviceAccountEmail}
+              onChange={(e) => setServiceAccountEmail(e.target.value)}
+              placeholder="your-account@project.iam.gserviceaccount.com"
+              className="text-xs font-mono"
+              required
+            />
+            <p className="text-[10px] text-[#176B45] font-medium">
+              👉 {locale === 'bn' ? 'এই ইমেইলটিকে আপনার Google Sheet এর "Share" এ গিয়ে Editor বানিয়ে দিন।' : 'Make sure to share your Google Sheet with this email as an Editor.'}
+            </p>
+          </div>
+
+          {/* Field 3: Private Key */}
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-[#172B22] flex items-center gap-1">
+              <Key className="w-3.5 h-3.5 text-[#176B45]" />
+              <span>{locale === 'bn' ? 'Private Key (JSON ফাইল থেকে পাওয়া কী) *' : 'Private Key (RSA Private Key) *'}</span>
+            </label>
+            <textarea
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              rows={4}
+              placeholder="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASC..."
+              className="w-full p-2.5 text-[11px] font-mono rounded-lg border border-[#D1E2D7] bg-white focus:border-[#176B45] focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-2 flex items-center justify-between border-t border-[#E2EBE5]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestConnection}
+              disabled={isTesting || isSaving}
+              className="text-xs border-[#176B45] text-[#176B45] hover:bg-[#EAF5EE]"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isTesting ? 'animate-spin' : ''}`} />
+              {isTesting ? (locale === 'bn' ? 'পরীক্ষা হচ্ছে...' : 'Testing...') : (locale === 'bn' ? 'সংযোগ পরীক্ষা করুন' : 'Test Connection')}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsConfigModalOpen(false)}
+                className="text-xs"
+              >
+                {t.common.cancel}
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSaving || isTesting}
+                className="text-xs bg-[#176B45] hover:bg-[#104C34] text-white"
+              >
+                {isSaving ? (locale === 'bn' ? 'সংরক্ষণ হচ্ছে...' : 'Saving...') : (locale === 'bn' ? 'সংরক্ষণ ও সংযোগ করুন' : 'Save & Connect')}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
