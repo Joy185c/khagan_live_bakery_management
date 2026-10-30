@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 247 249 248;
+    --foreground: 23 43 34;
+  }
+  body {
+    background-color: #F7F9F8;
+    color: #172B22;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", sans-serif;
+  }
+}
+
+/* Thermal POS Receipt Printing Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt, #printable-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #000;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #EAF5EE;
+}
+::-webkit-scrollbar-thumb {
+  background: #A3C9B3;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #176B45;
+}
