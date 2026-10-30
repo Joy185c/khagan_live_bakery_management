@@ -85,3 +85,4 @@ VALUES
     ('20000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'City Sugar & Flour Mills Ltd.', 'Md. Zahirul Haque', '01819-223344', 'sales@citymillsbd.com', 'Postogola, Dhaka', 0.00, 12500.00, TRUE),
     ('20000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'Aarong Dairy & Agro Foods', 'Sultan Mahmud', '01912-887766', 'corporate@aarongdairy.com', 'Tejgaon, Dhaka', 0.00, 8400.00, TRUE)
 ON CONFLICT DO NOTHING;
+

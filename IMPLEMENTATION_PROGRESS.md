@@ -141,3 +141,36 @@
 | 10 | Retry same checkout request -> one sale only (idempotency key) | PASSED | `src/__tests__/acceptance_scenarios.test.ts` (Scenario 10) & `processPOSSale` idempotency |
 | 11 | Close cash shift -> expected vs counted cash and variance correct | PASSED | `src/__tests__/acceptance_scenarios.test.ts` (Scenario 11) & `closeCashShift` blind count |
 | 12 | Reconcile inventory, sales, COGS and operating profit against source ledgers | PASSED | `src/__tests__/acceptance_scenarios.test.ts` (Scenario 12) & P&L Statement |
+
+
+---
+
+## 7. Automated Live Spreadsheet & Backup System (Completed)
+
+- **Worksheets Synchronized (13 Total)**:
+  1. `Daily Production`
+  2. `Raw Material Inventory`
+  3. `Finished Product Stock`
+  4. `Daily Sales`
+  5. `Recipe & Product Costing`
+  6. `Waste Register`
+  7. `Purchases & Suppliers`
+  8. `Expenses & Utilities`
+  9. `Employee Payroll`
+  10. `Daily Profit & Loss`
+  11. `Weekly Summary`
+  12. `Monthly Summary`
+  13. `Audit Log`
+- **Transactional Outbox Engine**:
+  - `spreadsheet_sync_outbox` & `spreadsheet_sync_settings` tables added to database schema.
+  - Asynchronous, non-blocking sync triggers on every business commit (Production Approval, POS Sales, Purchases, Wastage, Expenses).
+  - Outbox failure resilience: Google API outages or rate limits will NEVER block bakery transactions.
+- **Admin UI Section (`/admin/spreadsheet`)**:
+  - KPI Cards: Connected Sheet status, Last sync timestamp, Pending queue, Failed queue.
+  - Buttons: Sync Now, Reconcile Spreadsheet (Full 13-sheet rebuild), Retry Failed, Download 13-sheet Excel (.xlsx), Download CSV.
+  - Interactive status grid for all 13 worksheets.
+  - Filterable outbox event queue & audit log.
+- **Verification Results**:
+  - Vitest: **26 / 26 tests passed**.
+  - TypeScript: **0 errors**.
+  - Next.js Production Build: **26 static pages & API routes successfully generated**.

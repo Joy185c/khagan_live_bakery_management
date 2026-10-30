@@ -24,6 +24,11 @@ import {
   PayrollPeriod,
 } from '@/types';
 import {
+  SpreadsheetSyncOutboxItem,
+  SpreadsheetSyncEntityType,
+  SpreadsheetSyncAction,
+} from '@/lib/services/spreadsheet/types';
+import {
   INITIAL_PRODUCTS,
   INITIAL_CATEGORIES,
   INITIAL_RAW_MATERIALS,
@@ -109,6 +114,13 @@ interface DatabaseContextType {
   // Stock helpers
   getShopAvailableStock: (productId: string) => number;
   getWarehouseAvailableStock: (productId: string) => number;
+
+  // Automated Spreadsheet Sync & Backup
+  spreadsheetOutbox: SpreadsheetSyncOutboxItem[];
+  lastSyncedAt?: string;
+  syncSpreadsheetNow: () => Promise<{ success: boolean; message: string }>;
+  reconcileSpreadsheet: () => Promise<{ success: boolean; message: string }>;
+  retryFailedSync: () => Promise<{ success: boolean; message: string }>;
 }
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -134,6 +146,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
+  const [spreadsheetOutbox, setSpreadsheetOutbox] = useState<SpreadsheetSyncOutboxItem[]>([]);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>();
 
   // Persistent storage in browser
   useEffect(() => {
@@ -152,6 +166,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         if (parsed.expenses) setExpenses(parsed.expenses);
         if (parsed.wasteRecords) setWasteRecords(parsed.wasteRecords);
         if (parsed.suppliers) setSuppliers(parsed.suppliers);
+        if (parsed.spreadsheetOutbox) setSpreadsheetOutbox(parsed.spreadsheetOutbox);
+        if (parsed.lastSyncedAt) setLastSyncedAt(parsed.lastSyncedAt);
       }
     } catch {
       // Ignore parse errors on first run
@@ -172,6 +188,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         expenses,
         wasteRecords,
         suppliers,
+        spreadsheetOutbox,
+        lastSyncedAt,
       };
       localStorage.setItem('khagan_db_state_v1', JSON.stringify(state));
     } catch {
@@ -181,7 +199,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     persistState();
-  }, [products, rawMaterials, batches, inventoryLots, inventoryMovements, transfers, sales, activeCashSession, expenses, wasteRecords, suppliers]);
+  }, [products, rawMaterials, batches, inventoryLots, inventoryMovements, transfers, sales, activeCashSession, expenses, wasteRecords, suppliers, spreadsheetOutbox, lastSyncedAt]);
 
   // Stock helpers
   const getShopAvailableStock = (productId: string): number => {
@@ -194,6 +212,141 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     return inventoryLots
       .filter((lot) => lot.itemId === productId && lot.locationId === 'loc-wh-01')
       .reduce((sum, lot) => sum + lot.currentQuantity, 0);
+  };
+
+  // State snapshot for Spreadsheet Sync & Outbox
+  const getStateSnapshot = () => ({
+    products,
+    rawMaterials,
+    recipes,
+    batches,
+    sales,
+    expenses,
+    suppliers,
+    employees,
+    wasteRecords,
+    inventoryLots,
+    inventoryMovements,
+  });
+
+  const enqueueSyncEvent = (
+    entityType: SpreadsheetSyncEntityType,
+    action: SpreadsheetSyncAction,
+    entityId: string,
+    payload: Record<string, any> = {}
+  ) => {
+    const newItem: SpreadsheetSyncOutboxItem = {
+      id: `outbox-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      entityType,
+      action,
+      entityId,
+      payload,
+      status: 'pending',
+      retryCount: 0,
+      maxRetries: 5,
+      createdAt: new Date().toISOString(),
+    };
+
+    setSpreadsheetOutbox((prev) => [newItem, ...prev]);
+
+    // Asynchronously notify sync endpoint without blocking or failing local operations
+    if (typeof window !== 'undefined') {
+      setTimeout(async () => {
+        try {
+          const res = await fetch('/api/spreadsheet/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              outbox: [newItem],
+              state: getStateSnapshot(),
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.updatedOutbox) {
+              setSpreadsheetOutbox((prev) =>
+                prev.map((item) => {
+                  const updated = data.updatedOutbox.find((u: SpreadsheetSyncOutboxItem) => u.id === item.id);
+                  return updated || item;
+                })
+              );
+              setLastSyncedAt(new Date().toISOString());
+            }
+          }
+        } catch {
+          // Outbox item safely preserved in local storage for retry
+        }
+      }, 500);
+    }
+  };
+
+  const syncSpreadsheetNow = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await fetch('/api/spreadsheet/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outbox: spreadsheetOutbox,
+          state: getStateSnapshot(),
+        }),
+      });
+      const data = await res.json();
+      if (data.updatedOutbox) {
+        setSpreadsheetOutbox(data.updatedOutbox);
+        setLastSyncedAt(new Date().toISOString());
+      }
+      return { success: data.success, message: data.result?.message || 'Sync completed' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error during sync' };
+    }
+  };
+
+  const reconcileSpreadsheet = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await fetch('/api/spreadsheet/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: getStateSnapshot(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSpreadsheetOutbox((prev) =>
+          prev.map((i) => ({ ...i, status: 'completed' as const, processedAt: new Date().toISOString() }))
+        );
+        setLastSyncedAt(new Date().toISOString());
+      }
+      return { success: data.success, message: data.message };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Reconciliation request failed' };
+    }
+  };
+
+  const retryFailedSync = async (): Promise<{ success: boolean; message: string }> => {
+    const resetOutbox = spreadsheetOutbox.map((i) =>
+      i.status === 'failed' ? { ...i, status: 'pending' as const, retryCount: 0 } : i
+    );
+    setSpreadsheetOutbox(resetOutbox);
+
+    try {
+      const res = await fetch('/api/spreadsheet/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outbox: resetOutbox,
+          state: getStateSnapshot(),
+        }),
+      });
+      const data = await res.json();
+      if (data.updatedOutbox) {
+        setSpreadsheetOutbox(data.updatedOutbox);
+        setLastSyncedAt(new Date().toISOString());
+      }
+      return { success: data.success, message: data.result?.message || 'Retry processed' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Network error during retry' };
+    }
   };
 
   // 1. Production Batch Creation & Atomic Approval
@@ -227,6 +380,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     };
 
     setBatches((prev) => [newBatch, ...prev]);
+    enqueueSyncEvent('production_batch', 'INSERT', newBatch.id, { batchNumber: newBatch.batchNumber });
     return newBatch;
   };
 
@@ -330,6 +484,11 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
           : b
       )
     );
+
+    // Enqueue live spreadsheet sync events
+    enqueueSyncEvent('production_batch', 'APPROVE', batchId, { batchNumber: batch.batchNumber, yield: batch.yieldPercentage });
+    enqueueSyncEvent('raw_material', 'UPDATE', 'all', {});
+    enqueueSyncEvent('product', 'UPDATE', targetProduct.id, {});
 
     return { success: true, message: 'Batch approved and posted atomically to inventory.' };
   };
@@ -642,6 +801,10 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    // Enqueue live spreadsheet sync event
+    enqueueSyncEvent('sale', 'INSERT', saleId, { invoiceNumber, finalAmount: grandTotal, cashierName });
+    enqueueSyncEvent('product', 'UPDATE', 'pos_sale', {});
+
     return { success: true, sale: newSale };
   };
 
@@ -783,6 +946,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       ...prev,
     ]);
 
+    enqueueSyncEvent('waste', 'INSERT', newWaste.id, { reason, quantity, itemType });
     return true;
   };
 
@@ -846,6 +1010,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       ...prev,
     ]);
 
+    enqueueSyncEvent('purchase', 'INSERT', `po-${Date.now()}`, { supplierId, rawMaterialId, quantity, unitPrice });
+    enqueueSyncEvent('raw_material', 'UPDATE', rawMaterialId, {});
     return true;
   };
 
@@ -853,35 +1019,42 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const addProduct = (p: Omit<Product, 'id'>) => {
     const newProd: Product = { ...p, id: `prod-${Date.now()}` };
     setProducts((prev) => [newProd, ...prev]);
+    enqueueSyncEvent('product', 'INSERT', newProd.id, { sku: newProd.sku, nameEn: newProd.nameEn });
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    enqueueSyncEvent('product', 'UPDATE', id, updates);
   };
 
   const addRawMaterial = (m: Omit<RawMaterial, 'id'>) => {
     const newMat: RawMaterial = { ...m, id: `rm-${Date.now()}` };
     setRawMaterials((prev) => [newMat, ...prev]);
+    enqueueSyncEvent('raw_material', 'INSERT', newMat.id, { code: newMat.code, nameEn: newMat.nameEn });
   };
 
   const updateRawMaterial = (id: string, updates: Partial<RawMaterial>) => {
     setRawMaterials((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    enqueueSyncEvent('raw_material', 'UPDATE', id, updates);
   };
 
   const addSupplier = (s: Omit<Supplier, 'id'>) => {
     const newSup: Supplier = { ...s, id: `sup-${Date.now()}` };
     setSuppliers((prev) => [newSup, ...prev]);
+    enqueueSyncEvent('purchase', 'INSERT', newSup.id, { name: newSup.name });
   };
 
   const addEmployee = (e: Omit<Employee, 'id'>) => {
     const newEmp: Employee = { ...e, id: `emp-${Date.now()}` };
     setEmployees((prev) => [newEmp, ...prev]);
+    enqueueSyncEvent('payroll', 'INSERT', newEmp.id, { name: newEmp.fullNameEn });
   };
 
   const addExpense = (exp: Omit<Expense, 'id'>) => {
     const voucherNumber = `VCH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(expenses.length + 1).padStart(3, '0')}`;
     const newExp: Expense = { ...exp, id: `exp-${Date.now()}`, voucherNumber };
     setExpenses((prev) => [newExp, ...prev]);
+    enqueueSyncEvent('expense', 'INSERT', newExp.id, { voucherNumber, amount: newExp.amount });
   };
 
   return (
@@ -925,6 +1098,11 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         recordPurchase,
         getShopAvailableStock,
         getWarehouseAvailableStock,
+        spreadsheetOutbox,
+        lastSyncedAt,
+        syncSpreadsheetNow,
+        reconcileSpreadsheet,
+        retryFailedSync,
       }}
     >
       {children}

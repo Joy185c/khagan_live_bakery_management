@@ -47,3 +47,4 @@ This guide provides step-by-step instructions for deploying the **Khagan Live Ba
 - **Install PWA**: Click the browser menu $\rightarrow$ **Install App / Add to Home Screen** to run in fullscreen kiosk mode.
 - **USB / Bluetooth Barcode Scanner**: Connect the scanner to the terminal in USB HID keyboard emulation mode. Scanning any product instantly adds it to the cart.
 - **80mm Thermal Receipt Printer**: Pair via USB or Bluetooth; set paper size to 80mm in `/shop/settings`.
+

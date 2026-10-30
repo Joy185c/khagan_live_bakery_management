@@ -51,3 +51,4 @@ export function useBarcodeScanner({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onScan, minChars, maxDelayMs]);
 }
+

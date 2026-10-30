@@ -73,3 +73,4 @@ At the end of every business day (11:00 PM Asia/Dhaka):
 1. **Cash Shift Closed**: Ensure all cashier registers are closed and cash counts verified against expected drawer totals (`/shop/cash`).
 2. **Batch Approvals**: Ensure all day batches are either `Approved` or marked `Draft` (`/admin/production`).
 3. **P&L Export**: Manager downloads the official Excel report (`/admin/reports`) and archives a physical print-out.
+
