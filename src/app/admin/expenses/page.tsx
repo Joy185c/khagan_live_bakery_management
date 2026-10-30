@@ -130,6 +130,13 @@ export default function AdminExpensesPage() {
                     </tr>
                   );
                 })}
+                {expenses.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-[#5C7567] text-xs">
+                      {locale === 'bn' ? 'কোনো খরচের ভাউচার রেকর্ড পাওয়া যায়নি।' : 'No expense records found.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

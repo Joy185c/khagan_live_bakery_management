@@ -64,3 +64,4 @@ DROP POLICY IF EXISTS "Admin access spreadsheet_logs" ON spreadsheet_sync_logs;
 CREATE POLICY "Admin access spreadsheet_logs" ON spreadsheet_sync_logs
     FOR ALL TO authenticated
     USING (auth_user_role() IN ('super_admin', 'manager'));
+

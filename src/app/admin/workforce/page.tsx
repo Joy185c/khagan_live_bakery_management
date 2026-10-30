@@ -148,6 +148,13 @@ export default function AdminWorkforcePage() {
                       </td>
                     </tr>
                   ))}
+                  {employees.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-[#5C7567] text-xs">
+                        {locale === 'bn' ? 'কোনো কর্মী পাওয়া যায়নি।' : 'No employees added.'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -192,6 +199,13 @@ export default function AdminWorkforcePage() {
                       </td>
                     </tr>
                   ))}
+                  {employees.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-[#5C7567] text-xs">
+                        {locale === 'bn' ? 'কোনো কর্মী পাওয়া যায়নি।' : 'No employees added.'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

@@ -276,6 +276,15 @@ export default function AdminProductsPage() {
                     </tr>
                   );
                 })}
+                {filteredProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-[#5C7567] text-xs">
+                      {locale === 'bn'
+                        ? 'কোনো পণ্য পাওয়া যায়নি। নতুন পণ্য যোগ করতে উপরে "নতুন পণ্য যুক্ত করুন" বাটনে চাপুন।'
+                        : 'No products found. Start by adding your first product.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

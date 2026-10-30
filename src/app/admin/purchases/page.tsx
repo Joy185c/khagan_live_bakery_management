@@ -180,6 +180,13 @@ export default function AdminPurchasesPage() {
                     </td>
                   </tr>
                 ))}
+                {suppliers.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-[#5C7567] text-xs">
+                      {locale === 'bn' ? 'কোনো সরবরাহকারী পাওয়া যায়নি।' : 'No suppliers registered.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

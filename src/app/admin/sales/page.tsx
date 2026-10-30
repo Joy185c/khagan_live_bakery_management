@@ -156,6 +156,13 @@ export default function AdminSalesPage() {
                     </tr>
                   );
                 })}
+                {filteredSales.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-8 text-[#5C7567] text-xs">
+                      {locale === 'bn' ? 'কোনো বিক্রয় রেকর্ড পাওয়া যায়নি।' : 'No sales records found.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

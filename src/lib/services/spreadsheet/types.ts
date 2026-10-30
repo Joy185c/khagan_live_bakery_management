@@ -78,3 +78,4 @@ export interface SpreadsheetSyncResult {
   errors?: string[];
   timestamp: string;
 }
+

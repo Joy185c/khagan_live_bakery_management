@@ -276,6 +276,13 @@ export default function AdminProductionPage() {
                     </td>
                   </tr>
                 ))}
+                {batches.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="text-center py-8 text-[#5C7567] text-xs">
+                      {locale === 'bn' ? 'কোনো উৎপাদন ব্যাচ পাওয়া যায়নি।' : 'No production recorded yet.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
