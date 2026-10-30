@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
+import { useBarcodeScanner } from '@/lib/hooks/use-barcode-scanner';
 
 export default function ShopPosPage() {
   const { t, locale } = useTranslation();
@@ -56,6 +57,22 @@ export default function ShopPosPage() {
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Hardware Barcode Scanner Listener
+  useBarcodeScanner({
+    onScan: (scannedCode) => {
+      const match = products.find(
+        (p) =>
+          (p.barcode && p.barcode === scannedCode) ||
+          p.sku.toLowerCase() === scannedCode.toLowerCase()
+      );
+      if (match) {
+        addToCart(match);
+      } else {
+        alert(`বারকোড "${scannedCode}" এর কোনো পণ্য ক্যাটালগে পাওয়া যায়নি।`);
+      }
+    },
+  });
 
   // Cart operations
   const addToCart = (product: Product) => {

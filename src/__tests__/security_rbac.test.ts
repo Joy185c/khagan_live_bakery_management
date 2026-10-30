@@ -99,3 +99,4 @@ describe('Security & RBAC Permission Matrix Audit Tests', () => {
     expect(checkPermission(role, 'system_settings')).toBe(true);
   });
 });
+
