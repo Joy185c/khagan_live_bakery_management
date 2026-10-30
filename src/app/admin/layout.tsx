@@ -23,6 +23,7 @@ import {
   X,
   ShieldAlert,
   ChevronRight,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -43,6 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/expenses', label: t.nav.expenses, icon: Receipt },
     { href: '/admin/workforce', label: t.nav.workforce, icon: Users },
     { href: '/admin/reports', label: t.nav.reports, icon: BarChart3 },
+    { href: '/admin/import', label: locale === 'bn' ? 'এক্সেল মাইগ্রেশন' : 'Excel Import', icon: FileSpreadsheet },
     { href: '/admin/settings', label: t.nav.settings, icon: Settings },
   ];
 
@@ -236,3 +238,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
+

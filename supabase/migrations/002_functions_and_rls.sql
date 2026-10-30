@@ -310,3 +310,4 @@ CREATE POLICY "Public insert sales" ON sales FOR INSERT TO authenticated WITH CH
 CREATE POLICY "Public insert sale_items" ON sale_items FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Public insert movements" ON inventory_movements FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Public read cash sessions" ON cash_sessions FOR ALL TO authenticated USING (true);
+

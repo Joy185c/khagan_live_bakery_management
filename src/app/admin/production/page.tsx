@@ -134,19 +134,70 @@ export default function AdminProductionPage() {
       </div>
 
       {/* Yield & Efficiency Highlight Card */}
-      <div className="bg-[#104C34] text-white p-5 rounded-2xl shadow-sm space-y-3">
+      <div className="bg-[#104C34] text-white p-5 rounded-2xl shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <TrendingUp className="w-5 h-5 text-emerald-300" />
             <h3 className="font-bold text-sm">উৎপাদন ফলন ও প্রমিত ওজনের তুলনা (Yield & Variance Rule)</h3>
           </div>
           <span className="text-[11px] bg-emerald-900/60 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-700/50">
-            রিয়েল-টাইম ট্র্যাকিং
+            মাস্টার প্ল্যান সেকশন ৭
           </span>
         </div>
-        <p className="text-xs text-emerald-100/90 leading-relaxed">
-          মাস্টার প্ল্যান নিয়ম: যদি ১০ কেজি কাঁচামাল দিয়ে প্রথম দিন ১০ পিস এবং দ্বিতীয় দিন ১২ পিস উৎপাদিত হয়, তবে ফলন (+২০%) হলেও প্রমিত পিস ওজন ও উপাদানের অনুপাত অপরিবর্তিত আছে কিনা সিস্টেম তা সতর্ক করে।
-        </p>
+        
+        {/* Day 1 vs Day 2 Interactive Example Table from Spec */}
+        <div className="overflow-x-auto bg-black/20 rounded-xl p-3 border border-white/10">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="border-b border-white/10 text-emerald-300 font-semibold">
+                <th className="py-1.5 px-3">পরিমাপক (Metric)</th>
+                <th className="py-1.5 px-3">প্রথম দিন (Day 1)</th>
+                <th className="py-1.5 px-3">দ্বিতীয় দিন (Day 2)</th>
+                <th className="py-1.5 px-3">বিচ্যুতি ও ফলন প্রভাব (Variance & Analysis)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10 text-emerald-100">
+              <tr>
+                <td className="py-2 px-3 font-medium">কাঁচামাল ইনপুট (Ingredient Input)</td>
+                <td className="py-2 px-3 font-mono">১০ কেজি (10 kg)</td>
+                <td className="py-2 px-3 font-mono">১০ কেজি (10 kg)</td>
+                <td className="py-2 px-3 text-emerald-300">ইনপুট সমপরিমাণ (০% পার্থক্য)</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">বিক্রয়যোগ্য সংখ্যা (Saleable Output)</td>
+                <td className="py-2 px-3 font-mono">১০ পিস (10 pcs)</td>
+                <td className="py-2 px-3 font-mono font-bold text-white">১২ পিস (12 pcs)</td>
+                <td className="py-2 px-3 text-emerald-400 font-bold">+২০% বৃদ্ধি (উৎপাদন সংখ্যা বৃদ্ধি)</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">ফলন অনুপাত (Yield Ratio)</td>
+                <td className="py-2 px-3 font-mono">১.০ পিস / কেজি</td>
+                <td className="py-2 px-3 font-mono font-bold text-white">১.২ পিস / কেজি</td>
+                <td className="py-2 px-3 text-emerald-300">+০.২ পিস/কেজি কার্যদক্ষতা</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">কাঁচামাল মোট খরচ (Raw Cost at ৳50/kg)</td>
+                <td className="py-2 px-3 font-mono">৳ ৫০০</td>
+                <td className="py-2 px-3 font-mono">৳ ৫০০</td>
+                <td className="py-2 px-3 text-emerald-200">অপরিবর্তিত</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">পিস প্রতি কাঁচামাল ব্যয় (Raw Input Cost / Piece)</td>
+                <td className="py-2 px-3 font-mono">৳ ৫০.০০</td>
+                <td className="py-2 px-3 font-mono font-bold text-emerald-300">৳ ৪১.৬৭</td>
+                <td className="py-2 px-3 text-emerald-400 font-bold">ব্যয় হ্রাস: -৳ ৮.৩৩ / পিস</td>
+              </tr>
+              <tr className="bg-amber-950/40 text-amber-200">
+                <td className="py-2 px-3 font-semibold">প্রমিত ওজন সতর্কতা (Standard-Weight Variance)</td>
+                <td className="py-2 px-3 font-mono">৪০০ গ্রাম / পিস</td>
+                <td className="py-2 px-3 font-mono font-bold text-amber-300">৩৩০ গ্রাম / পিস</td>
+                <td className="py-2 px-3 text-amber-300 font-bold">
+                  ⚠️ সতর্কবার্তা: সংখ্যা ২০% বাড়লেও পিস প্রতি ওজন ১৭.৫% কমেছে!
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Batches Table */}
@@ -394,3 +445,4 @@ export default function AdminProductionPage() {
     </div>
   );
 }
+

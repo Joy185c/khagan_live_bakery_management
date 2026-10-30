@@ -201,3 +201,4 @@ describe('Khagan Live Bakery ERP & POS — Mandatory Acceptance Scenarios', () =
     expect(operatingProfit).toBe(2400);
   });
 });
+

@@ -748,3 +748,4 @@ export const INITIAL_SALES: Sale[] = [
     ],
   },
 ];
+

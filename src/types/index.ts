@@ -465,3 +465,4 @@ export interface PayrollPeriod {
   status: 'draft' | 'approved' | 'paid';
   items?: PayrollItem[];
 }
+

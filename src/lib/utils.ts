@@ -41,3 +41,4 @@ export function formatDateTime(dateStr: string, locale: 'bn' | 'en' = 'bn'): str
     minute: '2-digit',
   });
 }
+

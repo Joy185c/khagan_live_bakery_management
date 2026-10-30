@@ -685,3 +685,4 @@ CREATE INDEX IF NOT EXISTS idx_sales_session ON sales(session_id);
 CREATE INDEX IF NOT EXISTS idx_batches_date ON production_batches(production_date);
 CREATE INDEX IF NOT EXISTS idx_batches_status ON production_batches(status);
 CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
+
