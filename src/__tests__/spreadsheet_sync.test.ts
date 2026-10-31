@@ -3,16 +3,16 @@ import { SpreadsheetBuilders } from '../lib/services/spreadsheet/sheet-builders'
 import { SpreadsheetSyncOrchestrator, BakeryDataState } from '../lib/services/spreadsheet/sync-orchestrator';
 import { SpreadsheetSyncOutboxItem } from '../lib/services/spreadsheet/types';
 import {
-  INITIAL_PRODUCTS,
-  INITIAL_RAW_MATERIALS,
-  INITIAL_RECIPES,
-  INITIAL_BATCHES,
-  INITIAL_SALES,
-  INITIAL_EXPENSES,
-  INITIAL_SUPPLIERS,
-  INITIAL_EMPLOYEES,
-  INITIAL_INVENTORY_LOTS,
-} from '../lib/db/initial-data';
+  TEST_PRODUCTS as INITIAL_PRODUCTS,
+  TEST_RAW_MATERIALS as INITIAL_RAW_MATERIALS,
+  TEST_RECIPES as INITIAL_RECIPES,
+  TEST_BATCHES as INITIAL_BATCHES,
+  TEST_SALES as INITIAL_SALES,
+  TEST_EXPENSES as INITIAL_EXPENSES,
+  TEST_SUPPLIERS as INITIAL_SUPPLIERS,
+  TEST_EMPLOYEES as INITIAL_EMPLOYEES,
+  TEST_INVENTORY_LOTS as INITIAL_INVENTORY_LOTS,
+} from './test-fixtures';
 import * as XLSX from 'xlsx';
 
 describe('Spreadsheet & Backup System - Unit & Integration Tests', () => {

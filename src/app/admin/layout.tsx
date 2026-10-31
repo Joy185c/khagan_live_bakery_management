@@ -24,14 +24,18 @@ import {
   ShieldAlert,
   ChevronRight,
   FileSpreadsheet,
+  UserCheck,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { t, locale, toggleLocale } = useTranslation();
-  const { currentUser, switchRole, canAccessAdmin } = useAuth();
+  const { currentUser, switchRole, canAccessAdmin, logout, isSuperAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const isBn = locale === 'bn';
 
   const navItems = [
     { href: '/admin', label: t.nav.dashboard, icon: LayoutDashboard },
@@ -45,6 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/workforce', label: t.nav.workforce, icon: Users },
     { href: '/admin/reports', label: t.nav.reports, icon: BarChart3 },
     { href: '/admin/spreadsheet', label: t.nav.spreadsheet, icon: FileSpreadsheet },
+    ...(isSuperAdmin ? [{ href: '/admin/users', label: isBn ? 'ব্যবহারকারী ও অ্যাক্সেস' : 'Users & Access', icon: UserCheck }] : []),
     { href: '/admin/settings', label: t.nav.settings, icon: Settings },
   ];
 
@@ -194,11 +199,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <option value="cashier">Role: Cashier (POS only)</option>
             </select>
 
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="text-xs h-8">
-                প্রস্থান
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+              className="text-xs h-8 text-rose-600 border-rose-200 hover:bg-rose-50 flex items-center space-x-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>{isBn ? 'লগআউট' : 'Logout'}</span>
+            </Button>
           </div>
         </header>
 

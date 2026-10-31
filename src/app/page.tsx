@@ -59,6 +59,12 @@ export default function HomePage() {
               <Globe className="w-4 h-4 text-[#176B45]" />
               <span>{locale === 'bn' ? 'English' : 'বাংলা'}</span>
             </Button>
+
+            <Link href="/login">
+              <Button size="sm" className="bg-[#176B45] hover:bg-[#104C34] text-white text-xs h-9">
+                লগইন করুন &rarr;
+              </Button>
+            </Link>
           </div>
         </div>
       </header>

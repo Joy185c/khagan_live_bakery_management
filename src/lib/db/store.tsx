@@ -28,6 +28,7 @@ import {
   SpreadsheetSyncEntityType,
   SpreadsheetSyncAction,
 } from '@/lib/services/spreadsheet/types';
+import { supabase } from '../supabase/client';
 import {
   INITIAL_PRODUCTS,
   INITIAL_CATEGORIES,
@@ -149,29 +150,139 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [spreadsheetOutbox, setSpreadsheetOutbox] = useState<SpreadsheetSyncOutboxItem[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>();
 
-  // Persistent storage in browser
+  // Load authoritative data from Supabase & purge stale mock localStorage
   useEffect(() => {
+    // 1. Purge legacy mock storage
     try {
-      const saved = localStorage.getItem('khagan_db_state_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.products) setProducts(parsed.products);
-        if (parsed.rawMaterials) setRawMaterials(parsed.rawMaterials);
-        if (parsed.batches) setBatches(parsed.batches);
-        if (parsed.inventoryLots) setInventoryLots(parsed.inventoryLots);
-        if (parsed.inventoryMovements) setInventoryMovements(parsed.inventoryMovements);
-        if (parsed.transfers) setTransfers(parsed.transfers);
-        if (parsed.sales) setSales(parsed.sales);
-        if (parsed.activeCashSession !== undefined) setActiveCashSession(parsed.activeCashSession);
-        if (parsed.expenses) setExpenses(parsed.expenses);
-        if (parsed.wasteRecords) setWasteRecords(parsed.wasteRecords);
-        if (parsed.suppliers) setSuppliers(parsed.suppliers);
-        if (parsed.spreadsheetOutbox) setSpreadsheetOutbox(parsed.spreadsheetOutbox);
-        if (parsed.lastSyncedAt) setLastSyncedAt(parsed.lastSyncedAt);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('khagan_db_state_v1');
       }
     } catch {
-      // Ignore parse errors on first run
+      // Safe
     }
+
+    // 2. Fetch real data from Supabase
+    async function fetchFromSupabase() {
+      try {
+        const [
+          { data: pData },
+          { data: cData },
+          { data: rmData },
+          { data: sData },
+          { data: eData },
+          { data: bData },
+          { data: saleData },
+        ] = await Promise.all([
+          supabase.from('products').select('*').order('created_at', { ascending: false }),
+          supabase.from('product_categories').select('*').order('sort_order', { ascending: true }),
+          supabase.from('raw_materials').select('*').order('created_at', { ascending: false }),
+          supabase.from('suppliers').select('*').order('created_at', { ascending: false }),
+          supabase.from('expenses').select('*').order('created_at', { ascending: false }),
+          supabase.from('production_batches').select('*').order('created_at', { ascending: false }),
+          supabase.from('sales').select('*').order('created_at', { ascending: false }),
+        ]);
+
+        if (pData && pData.length > 0) {
+          setProducts(
+            pData.map((d: any) => ({
+              id: d.id,
+              branchId: d.branch_id || 'branch-khagan-01',
+              sku: d.sku,
+              barcode: d.barcode || '',
+              nameEn: d.name_en,
+              nameBn: d.name_bn,
+              categoryId: d.category_id || 'cat-bread',
+              unitId: d.unit_id || 'u-pcs',
+              standardPieceWeightG: Number(d.standard_piece_weight_g || 0),
+              sellingPrice: Number(d.selling_price || 0),
+              costPrice: Number(d.cost_price || 0),
+              shelfLifeDays: Number(d.shelf_life_days || 1),
+              imageUrl: d.image_url,
+              isActive: d.is_active ?? true,
+            }))
+          );
+        } else {
+          // If 0 products in DB, check local state v2 or remain empty []
+          const saved = localStorage.getItem('khagan_db_state_v2');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.products) setProducts(parsed.products);
+          }
+        }
+
+        if (cData && cData.length > 0) {
+          setCategories(
+            cData.map((c: any) => ({
+              id: c.id,
+              nameEn: c.name_en,
+              nameBn: c.name_bn,
+              slug: c.slug,
+              sortOrder: c.sort_order || 0,
+              isActive: c.is_active ?? true,
+            }))
+          );
+        }
+
+        if (rmData && rmData.length > 0) {
+          setRawMaterials(
+            rmData.map((r: any) => ({
+              id: r.id,
+              branchId: r.branch_id || 'branch-khagan-01',
+              code: r.code,
+              nameEn: r.name_en,
+              nameBn: r.name_bn,
+              category: r.category || 'Flour & Grains',
+              baseUnitId: r.base_unit_id || 'u-kg',
+              purchaseUnitId: r.purchase_unit_id || 'u-kg',
+              conversionRatio: Number(r.conversion_ratio || 1),
+              currentStock: Number(r.current_stock || 0),
+              avgCostPerUnit: Number(r.avg_cost_per_unit || 0),
+              reorderPoint: Number(r.reorder_point || 0),
+              shelfLifeDays: Number(r.shelf_life_days || 30),
+              storageLocation: r.storage_location || 'Warehouse',
+              isActive: r.is_active ?? true,
+            }))
+          );
+        }
+
+        if (sData && sData.length > 0) {
+          setSuppliers(
+            sData.map((s: any) => ({
+              id: s.id,
+              branchId: s.branch_id || 'branch-khagan-01',
+              name: s.name,
+              contactPerson: s.contact_person || '',
+              phone: s.phone || '',
+              email: s.email || '',
+              address: s.address || '',
+              openingBalance: Number(s.opening_balance || 0),
+              currentBalance: Number(s.current_balance || 0),
+              isActive: s.is_active ?? true,
+            }))
+          );
+        }
+
+        if (eData && eData.length > 0) {
+          setExpenses(
+            eData.map((e: any) => ({
+              id: e.id,
+              branchId: e.branch_id || 'branch-khagan-01',
+              voucherNumber: e.voucher_number || '',
+              categoryId: e.category_id || 'exp-cat-rent',
+              amount: Number(e.amount || 0),
+              paymentMethod: e.payment_method || 'cash',
+              paidTo: e.paid_to || '',
+              expenseDate: e.expense_date || new Date().toISOString().slice(0, 10),
+              notes: e.notes || '',
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn('Supabase initial fetch safe fallback:', err);
+      }
+    }
+
+    fetchFromSupabase();
   }, []);
 
   const persistState = () => {
@@ -191,7 +302,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         spreadsheetOutbox,
         lastSyncedAt,
       };
-      localStorage.setItem('khagan_db_state_v1', JSON.stringify(state));
+      localStorage.setItem('khagan_db_state_v2', JSON.stringify(state));
     } catch {
       // Storage quota or error safe
     }

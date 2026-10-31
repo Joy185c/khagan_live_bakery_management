@@ -53,7 +53,7 @@ export const INITIAL_CATEGORIES: ProductCategory[] = [
   { id: 'cat-sweets', nameEn: 'Traditional Sweets', nameBn: 'মিষ্টান্ন', slug: 'sweets', sortOrder: 5, isActive: true },
 ];
 
-export const INITIAL_PRODUCTS: Product[] = [
+export const FIXTURE_PRODUCTS: Product[] = [
   {
     id: 'prod-bread-01',
     branchId: 'branch-khagan-01',
@@ -152,7 +152,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
 ];
 
-export const INITIAL_RAW_MATERIALS: RawMaterial[] = [
+export const FIXTURE_RAW_MATERIALS: RawMaterial[] = [
   {
     id: 'rm-flour',
     branchId: 'branch-khagan-01',
@@ -274,7 +274,7 @@ export const INITIAL_RAW_MATERIALS: RawMaterial[] = [
   },
 ];
 
-export const INITIAL_RECIPES: Recipe[] = [
+export const FIXTURE_RECIPES: Recipe[] = [
   {
     id: 'rec-milk-bread',
     productId: 'prod-bread-01',
@@ -349,7 +349,7 @@ export const INITIAL_RECIPES: Recipe[] = [
   },
 ];
 
-export const INITIAL_SUPPLIERS: Supplier[] = [
+export const FIXTURE_SUPPLIERS: Supplier[] = [
   {
     id: 'sup-city-mills',
     branchId: 'branch-khagan-01',
@@ -376,7 +376,7 @@ export const INITIAL_SUPPLIERS: Supplier[] = [
   },
 ];
 
-export const INITIAL_EMPLOYEES: Employee[] = [
+export const FIXTURE_EMPLOYEES: Employee[] = [
   {
     id: 'emp-01',
     branchId: 'branch-khagan-01',
@@ -434,7 +434,7 @@ export const INITIAL_EXPENSE_CATEGORIES: ExpenseCategory[] = [
   { id: 'exp-cat-cleaning', nameEn: 'Kitchen Sanitation & Chemicals', nameBn: 'ক্লিনিং সামগ্রী', isUtility: false, isActive: true },
 ];
 
-export const INITIAL_EXPENSES: Expense[] = [
+export const FIXTURE_EXPENSES: Expense[] = [
   {
     id: 'exp-01',
     branchId: 'branch-khagan-01',
@@ -460,7 +460,7 @@ export const INITIAL_EXPENSES: Expense[] = [
 ];
 
 // Initial production batch
-export const INITIAL_BATCHES: ProductionBatch[] = [
+export const FIXTURE_BATCHES: ProductionBatch[] = [
   {
     id: 'batch-20261030-01',
     branchId: 'branch-khagan-01',
@@ -550,8 +550,8 @@ export const INITIAL_BATCHES: ProductionBatch[] = [
   },
 ];
 
-// Initial stock in shop counter & warehouse
-export const INITIAL_INVENTORY_LOTS: InventoryLot[] = [
+// Fixture stock in shop counter & warehouse
+export const FIXTURE_INVENTORY_LOTS: InventoryLot[] = [
   // Finished goods in Kitchen/Warehouse
   {
     id: 'lot-bread-wh',
@@ -647,8 +647,8 @@ export const INITIAL_INVENTORY_LOTS: InventoryLot[] = [
   },
 ];
 
-// Active Cash Shift Session
-export const INITIAL_CASH_SESSION: CashSession = {
+// Active Cash Shift Session Fixture
+export const FIXTURE_CASH_SESSION: CashSession = {
   id: 'sess-20261030-01',
   branchId: 'branch-khagan-01',
   locationId: 'loc-shop-01',
@@ -669,7 +669,7 @@ export const INITIAL_CASH_SESSION: CashSession = {
 };
 
 // Seed sales for today
-export const INITIAL_SALES: Sale[] = [
+export const FIXTURE_SALES: Sale[] = [
   {
     id: 'sale-001',
     branchId: 'branch-khagan-01',
@@ -748,4 +748,20 @@ export const INITIAL_SALES: Sale[] = [
     ],
   },
 ];
+
+// ============================================================================
+// PRODUCTION INITIAL DATA (NO MOCK DATA)
+// When starting clean or when database tables have 0 rows, start empty!
+// ============================================================================
+export const INITIAL_PRODUCTS: Product[] = [];
+export const INITIAL_RAW_MATERIALS: RawMaterial[] = [];
+export const INITIAL_RECIPES: Recipe[] = [];
+export const INITIAL_SUPPLIERS: Supplier[] = [];
+export const INITIAL_EMPLOYEES: Employee[] = [];
+export const INITIAL_EXPENSES: Expense[] = [];
+export const INITIAL_BATCHES: ProductionBatch[] = [];
+export const INITIAL_INVENTORY_LOTS: InventoryLot[] = [];
+export const INITIAL_SALES: Sale[] = [];
+export const INITIAL_CASH_SESSION: CashSession | null = null;
+
 

@@ -7,17 +7,68 @@ export type UserRole =
   | 'accountant'
   | 'viewer';
 
+export type AccountStatus = 'active' | 'blocked' | 'suspended' | 'deactivated';
+
 export type Language = 'bn' | 'en';
+
+export interface ModulePermissions {
+  canAccessPOS?: boolean;
+  canManageProduction?: boolean;
+  canManageInventory?: boolean;
+  canViewReports?: boolean;
+  canManageExpenses?: boolean;
+  canManagePurchases?: boolean;
+  canManageRecipes?: boolean;
+  canManageSettings?: boolean;
+  canManageUsers?: boolean;
+}
 
 export interface UserProfile {
   id: string;
+  email?: string;
   fullName: string;
   phone: string;
   role: UserRole;
+  status: AccountStatus;
   languagePreference: Language;
   branchId: string;
   assignedLocationId?: string;
   avatarUrl?: string;
+  isActive?: boolean;
+  suspendedUntil?: string | null;
+  blockedReason?: string | null;
+  blockedBy?: string | null;
+  lastLoginAt?: string | null;
+  sessionVersion?: number;
+  customPermissions?: ModulePermissions;
+  createdAt?: string;
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  branchId?: string;
+  actorId?: string;
+  actorName?: string;
+  targetUserId?: string;
+  targetUserName?: string;
+  action:
+    | 'BLOCK_USER'
+    | 'UNBLOCK_USER'
+    | 'SUSPEND_USER'
+    | 'REVOKE_ACCESS'
+    | 'ACTIVATE_USER'
+    | 'DEACTIVATE_USER'
+    | 'CHANGE_ROLE'
+    | 'UPDATE_PERMISSIONS'
+    | 'FORCE_LOGOUT'
+    | 'INVITE_USER'
+    | 'RESET_PASSWORD'
+    | 'FIRST_OWNER_SETUP';
+  reason?: string;
+  details?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
 }
 
 export interface Unit {

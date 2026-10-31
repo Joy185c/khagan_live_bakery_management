@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { translations } from '../lib/i18n/translations';
 import { DEMO_USERS } from '../lib/auth/auth-context';
 import {
-  INITIAL_RAW_MATERIALS,
-  INITIAL_PRODUCTS,
-  INITIAL_BATCHES,
-  INITIAL_RECIPES,
-} from '../lib/db/initial-data';
+  TEST_RAW_MATERIALS as INITIAL_RAW_MATERIALS,
+  TEST_PRODUCTS as INITIAL_PRODUCTS,
+  TEST_BATCHES as INITIAL_BATCHES,
+  TEST_RECIPES as INITIAL_RECIPES,
+} from './test-fixtures';
 import { RawMaterial, Product, InventoryLot, InventoryMovement, ProductionBatch, CashSession, Sale } from '../types';
 
 describe('Khagan Live Bakery ERP & POS — Mandatory Acceptance Scenarios', () => {
