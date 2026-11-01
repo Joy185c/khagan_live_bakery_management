@@ -42,6 +42,15 @@ export default function AdminPurchasesPage() {
   const [purchaseQty, setPurchaseQty] = useState('50'); // 50 kg as per Scenario 1
   const [unitPrice, setUnitPrice] = useState('60');
 
+  React.useEffect(() => {
+    if ((!selectedSupplierId || !suppliers.some((s) => s.id === selectedSupplierId)) && suppliers.length > 0) {
+      setSelectedSupplierId(suppliers[0].id);
+    }
+    if ((!selectedMaterialId || !rawMaterials.some((m) => m.id === selectedMaterialId)) && rawMaterials.length > 0) {
+      setSelectedMaterialId(rawMaterials[0].id);
+    }
+  }, [suppliers, rawMaterials, selectedSupplierId, selectedMaterialId]);
+
   // Supplier Form
   const [supName, setSupName] = useState('');
   const [supContact, setSupContact] = useState('');
@@ -50,6 +59,14 @@ export default function AdminPurchasesPage() {
 
   const handleRecordPurchase = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedSupplierId) {
+      alert('অনুগ্রহ করে একটি সরবরাহকারী নির্বাচন করুন।');
+      return;
+    }
+    if (!selectedMaterialId) {
+      alert('অনুগ্রহ করে একটি কাঁচামাল নির্বাচন করুন।');
+      return;
+    }
     const qty = Number(purchaseQty);
     const price = Number(unitPrice);
     if (qty <= 0 || price <= 0) return;

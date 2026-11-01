@@ -15,6 +15,8 @@ import {
   Barcode,
   Check,
   Edit2,
+  Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,12 +26,13 @@ import { Modal } from '@/components/ui/modal';
 
 export default function AdminProductsPage() {
   const { t, locale } = useTranslation();
-  const { products, categories, addProduct, updateProduct, getShopAvailableStock, getWarehouseAvailableStock } = useDatabase();
+  const { products, categories, addProduct, updateProduct, deleteProduct, getShopAvailableStock, getWarehouseAvailableStock } = useDatabase();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form State
   const [nameBn, setNameBn] = useState('');
@@ -41,6 +44,8 @@ export default function AdminProductsPage() {
   const [costPrice, setCostPrice] = useState('48');
   const [standardWeightG, setStandardWeightG] = useState('400');
   const [shelfLifeDays, setShelfLifeDays] = useState('3');
+  const [initialShopStock, setInitialShopStock] = useState('20');
+  const [initialWhStock, setInitialWhStock] = useState('0');
 
   const filteredProducts = products.filter((p) => {
     const matchesCategory = selectedCategory === 'all' || p.categoryId === selectedCategory;
@@ -62,6 +67,8 @@ export default function AdminProductsPage() {
     setCostPrice('60');
     setStandardWeightG('250');
     setShelfLifeDays('3');
+    setInitialShopStock('20');
+    setInitialWhStock('0');
     setIsAddModalOpen(true);
   };
 
@@ -76,6 +83,8 @@ export default function AdminProductsPage() {
     setCostPrice(String(p.costPrice));
     setStandardWeightG(String(p.standardPieceWeightG || '0'));
     setShelfLifeDays(String(p.shelfLifeDays));
+    setInitialShopStock('0');
+    setInitialWhStock('0');
     setIsAddModalOpen(true);
   };
 
@@ -95,24 +104,41 @@ export default function AdminProductsPage() {
         standardPieceWeightG: Number(standardWeightG),
         shelfLifeDays: Number(shelfLifeDays),
       });
+      setToastMessage(`পণ্য "${nameBn}" সফলভাবে আপডেট করা হয়েছে।`);
     } else {
-      addProduct({
-        branchId: 'branch-khagan-01',
-        sku,
-        barcode,
-        nameBn,
-        nameEn,
-        categoryId,
-        unitId: 'u-pcs',
-        sellingPrice: Number(sellingPrice),
-        costPrice: Number(costPrice),
-        standardPieceWeightG: Number(standardWeightG),
-        shelfLifeDays: Number(shelfLifeDays),
-        imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80',
-        isActive: true,
-      });
+      addProduct(
+        {
+          branchId: 'branch-khagan-01',
+          sku,
+          barcode,
+          nameBn,
+          nameEn,
+          categoryId,
+          unitId: 'u-pcs',
+          sellingPrice: Number(sellingPrice),
+          costPrice: Number(costPrice),
+          standardPieceWeightG: Number(standardWeightG),
+          shelfLifeDays: Number(shelfLifeDays),
+          imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80',
+          isActive: true,
+        },
+        {
+          shop: Number(initialShopStock) || 0,
+          warehouse: Number(initialWhStock) || 0,
+        }
+      );
+      setToastMessage(`নতুন পণ্য "${nameBn}" সফলভাবে তৈরি হয়েছে এবং মজুত যুক্ত হয়েছে!`);
     }
     setIsAddModalOpen(false);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleDelete = (p: Product) => {
+    if (confirm(`আপনি কি নিশ্চিত যে "${p.nameBn}" পণ্যটি মুছে ফেলতে চান?`)) {
+      deleteProduct(p.id);
+      setToastMessage(`পণ্য "${p.nameBn}" সফলভাবে মুছে ফেলা হয়েছে।`);
+      setTimeout(() => setToastMessage(null), 4000);
+    }
   };
 
   const handleToggleActive = (p: Product) => {
@@ -121,6 +147,14 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center space-x-2 shadow-sm animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -258,6 +292,7 @@ export default function AdminProductsPage() {
                             size="sm"
                             onClick={() => handleOpenEdit(p)}
                             className="h-7 w-7 p-0 text-[#176B45] hover:bg-[#EAF5EE]"
+                            title="সম্পাদনা করুন"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </Button>
@@ -271,6 +306,15 @@ export default function AdminProductsPage() {
                           >
                             {p.isActive ? 'আর্কাইভ' : 'সক্রিয়'}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(p)}
+                            className="h-7 w-7 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            title="পণ্য মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -278,7 +322,7 @@ export default function AdminProductsPage() {
                 })}
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-[#5C7567] text-xs">
+                    <td colSpan={9} className="text-center py-8 text-[#5C7567] text-xs">
                       {locale === 'bn'
                         ? 'কোনো পণ্য পাওয়া যায়নি। নতুন পণ্য যোগ করতে উপরে "নতুন পণ্য যুক্ত করুন" বাটনে চাপুন।'
                         : 'No products found. Start by adding your first product.'}
@@ -376,6 +420,31 @@ export default function AdminProductsPage() {
               onChange={(e) => setShelfLifeDays(e.target.value)}
             />
           </div>
+
+          {!editingProduct && (
+            <div className="p-3 bg-[#EAF5EE]/50 border border-[#D1E2D7] rounded-xl space-y-2">
+              <p className="text-xs font-bold text-[#172B22]">প্রারম্ভিক মজুত (Initial Stock - ঐচ্ছিক)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="দোকান কাউন্টার মজুত (Shop Stock পিস)"
+                  type="number"
+                  value={initialShopStock}
+                  onChange={(e) => setInitialShopStock(e.target.value)}
+                  placeholder="20"
+                />
+                <Input
+                  label="গুদাম মজুত (Warehouse Stock পিস)"
+                  type="number"
+                  value={initialWhStock}
+                  onChange={(e) => setInitialWhStock(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <p className="text-[11px] text-[#5C7567]">
+                দোকান কাউন্টারে প্রারম্ভিক স্টক দিলে পণ্যটি সাথে সাথে বিক্রয় পয়েন্টে (POS) বিক্রির জন্য প্রস্তুত হবে।
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4 border-t border-[#D1E2D7]">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsAddModalOpen(false)}>

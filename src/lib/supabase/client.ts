@@ -9,3 +9,4 @@ export function createClient() {
 
 // Global browser instance for single client calls
 export const supabase = createClient();
+

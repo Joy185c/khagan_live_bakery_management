@@ -69,13 +69,17 @@ interface DatabaseContextType {
   payrollPeriods: PayrollPeriod[];
 
   // Master Data CRUD
-  addProduct: (product: Omit<Product, 'id'>) => void;
+  addProduct: (product: Omit<Product, 'id'>, initialStock?: { shop?: number; warehouse?: number }) => Product;
   updateProduct: (id: string, updates: Partial<Product>) => void;
-  addRawMaterial: (material: Omit<RawMaterial, 'id'>) => void;
+  deleteProduct: (id: string) => void;
+  addRecipe: (recipe: Omit<Recipe, 'id'>) => Recipe;
+  updateRecipe: (id: string, updates: Partial<Recipe>) => void;
+  deleteRecipe: (id: string) => void;
+  addRawMaterial: (material: Omit<RawMaterial, 'id'>) => RawMaterial;
   updateRawMaterial: (id: string, updates: Partial<RawMaterial>) => void;
-  addSupplier: (supplier: Omit<Supplier, 'id'>) => void;
-  addEmployee: (employee: Omit<Employee, 'id'>) => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  addSupplier: (supplier: Omit<Supplier, 'id'>) => Supplier;
+  addEmployee: (employee: Omit<Employee, 'id'>) => Employee;
+  addExpense: (expense: Omit<Expense, 'id'>) => Expense;
 
   // Business Transactions
   createProductionBatch: (batch: Partial<ProductionBatch>) => ProductionBatch;
@@ -126,29 +130,52 @@ interface DatabaseContextType {
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
 
+// Helper to safely read persisted state on initial render
+function readStoredField<T>(field: string, fallback: T): T {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('khagan_db_state_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed[field] !== undefined && Array.isArray(parsed[field])) {
+          // If fallback has predefined configuration (like categories) and stored array is empty, retain fallback
+          if (Array.isArray(fallback) && fallback.length > 0 && parsed[field].length === 0) {
+            return fallback;
+          }
+          return parsed[field] as T;
+        }
+      }
+    } catch {
+      // safe fallback
+    }
+  }
+  return fallback;
+}
+
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [categories, setCategories] = useState<ProductCategory[]>(INITIAL_CATEGORIES);
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(INITIAL_RAW_MATERIALS);
-  const [recipes, setRecipes] = useState<Recipe[]>(INITIAL_RECIPES);
+  const [products, setProducts] = useState<Product[]>(() => readStoredField('products', INITIAL_PRODUCTS));
+  const [categories, setCategories] = useState<ProductCategory[]>(() => readStoredField('categories', INITIAL_CATEGORIES));
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(() => readStoredField('rawMaterials', INITIAL_RAW_MATERIALS));
+  const [recipes, setRecipes] = useState<Recipe[]>(() => readStoredField('recipes', INITIAL_RECIPES));
   const [locations] = useState<Location[]>(INITIAL_LOCATIONS);
   const [units] = useState<Unit[]>(INITIAL_UNITS);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
-  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => readStoredField('suppliers', INITIAL_SUPPLIERS));
+  const [employees, setEmployees] = useState<Employee[]>(() => readStoredField('employees', INITIAL_EMPLOYEES));
   const [expenseCategories] = useState<ExpenseCategory[]>(INITIAL_EXPENSE_CATEGORIES);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [batches, setBatches] = useState<ProductionBatch[]>(INITIAL_BATCHES);
-  const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(INITIAL_INVENTORY_LOTS);
+  const [expenses, setExpenses] = useState<Expense[]>(() => readStoredField('expenses', INITIAL_EXPENSES));
+  const [batches, setBatches] = useState<ProductionBatch[]>(() => readStoredField('batches', INITIAL_BATCHES));
+  const [inventoryLots, setInventoryLots] = useState<InventoryLot[]>(() => readStoredField('inventoryLots', INITIAL_INVENTORY_LOTS));
   const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
-  const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
+  const [sales, setSales] = useState<Sale[]>(() => readStoredField('sales', INITIAL_SALES));
   const [activeCashSession, setActiveCashSession] = useState<CashSession | null>(INITIAL_CASH_SESSION);
   const [pastCashSessions, setPastCashSessions] = useState<CashSession[]>([]);
-  const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
+  const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>(() => readStoredField('wasteRecords', []));
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriod[]>([]);
   const [spreadsheetOutbox, setSpreadsheetOutbox] = useState<SpreadsheetSyncOutboxItem[]>([]);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>();
+  const [isReady, setIsReady] = useState(false);
 
   // Load authoritative data from Supabase & purge stale mock localStorage
   useEffect(() => {
@@ -161,13 +188,14 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       // Safe
     }
 
-    // 2. Fetch real data from Supabase
+    // 2. Fetch real data from Supabase and merge
     async function fetchFromSupabase() {
       try {
         const [
           { data: pData },
           { data: cData },
           { data: rmData },
+          { data: rData },
           { data: sData },
           { data: eData },
           { data: bData },
@@ -176,6 +204,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
           supabase.from('products').select('*').order('created_at', { ascending: false }),
           supabase.from('product_categories').select('*').order('sort_order', { ascending: true }),
           supabase.from('raw_materials').select('*').order('created_at', { ascending: false }),
+          supabase.from('recipes').select('*').order('created_at', { ascending: false }),
           supabase.from('suppliers').select('*').order('created_at', { ascending: false }),
           supabase.from('expenses').select('*').order('created_at', { ascending: false }),
           supabase.from('production_batches').select('*').order('created_at', { ascending: false }),
@@ -201,13 +230,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
               isActive: d.is_active ?? true,
             }))
           );
-        } else {
-          // If 0 products in DB, check local state v2 or remain empty []
-          const saved = localStorage.getItem('khagan_db_state_v2');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.products) setProducts(parsed.products);
-          }
         }
 
         if (cData && cData.length > 0) {
@@ -240,6 +262,22 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
               reorderPoint: Number(r.reorder_point || 0),
               shelfLifeDays: Number(r.shelf_life_days || 30),
               storageLocation: r.storage_location || 'Warehouse',
+              isActive: r.is_active ?? true,
+            }))
+          );
+        }
+
+        if (rData && rData.length > 0) {
+          setRecipes(
+            rData.map((r: any) => ({
+              id: r.id,
+              productId: r.product_id,
+              nameEn: r.name_en,
+              nameBn: r.name_bn,
+              standardBatchSize: Number(r.standard_batch_size || 1),
+              expectedOutputCount: Number(r.expected_output_count || 1),
+              expectedOutputWeightKg: Number(r.expected_output_weight_kg || 1),
+              standardWastePct: Number(r.standard_waste_pct || 2),
               isActive: r.is_active ?? true,
             }))
           );
@@ -279,6 +317,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.warn('Supabase initial fetch safe fallback:', err);
+      } finally {
+        setIsReady(true);
       }
     }
 
@@ -286,10 +326,15 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistState = () => {
+    if (!isReady) return; // Prevent overwriting stored data during initial mount
     try {
       const state = {
         products,
+        categories,
         rawMaterials,
+        recipes,
+        suppliers,
+        employees,
         batches,
         inventoryLots,
         inventoryMovements,
@@ -298,7 +343,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         activeCashSession,
         expenses,
         wasteRecords,
-        suppliers,
         spreadsheetOutbox,
         lastSyncedAt,
       };
@@ -310,7 +354,25 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     persistState();
-  }, [products, rawMaterials, batches, inventoryLots, inventoryMovements, transfers, sales, activeCashSession, expenses, wasteRecords, suppliers, spreadsheetOutbox, lastSyncedAt]);
+  }, [
+    isReady,
+    products,
+    categories,
+    rawMaterials,
+    recipes,
+    suppliers,
+    employees,
+    batches,
+    inventoryLots,
+    inventoryMovements,
+    transfers,
+    sales,
+    activeCashSession,
+    expenses,
+    wasteRecords,
+    spreadsheetOutbox,
+    lastSyncedAt,
+  ]);
 
   // Stock helpers
   const getShopAvailableStock = (productId: string): number => {
@@ -1127,45 +1189,267 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   // 7. General Master Data CRUD
-  const addProduct = (p: Omit<Product, 'id'>) => {
-    const newProd: Product = { ...p, id: `prod-${Date.now()}` };
-    setProducts((prev) => [newProd, ...prev]);
+  const addProduct = (p: Omit<Product, 'id'>, initialStock?: { shop?: number; warehouse?: number }): Product => {
+    const newProd: Product = { ...p, id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` };
+    setProducts((prev) => {
+      const updated = [newProd, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, products: updated }));
+      } catch {}
+      return updated;
+    });
+
+    // If initial stock is specified, create corresponding lots
+    const newLots: InventoryLot[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    const expiry = new Date(Date.now() + (newProd.shelfLifeDays || 3) * 86400000).toISOString().slice(0, 10);
+
+    if (initialStock?.shop && initialStock.shop > 0) {
+      newLots.push({
+        id: `lot-${Date.now()}-shop`,
+        branchId: 'branch-khagan-01',
+        locationId: 'loc-shop-01',
+        itemType: 'product',
+        itemId: newProd.id,
+        lotNumber: `LOT-${today.replace(/-/g, '')}-INIT-S`,
+        initialQuantity: initialStock.shop,
+        currentQuantity: initialStock.shop,
+        receivedDate: today,
+        expiryDate: expiry,
+        unitCost: newProd.costPrice,
+      });
+    }
+
+    if (initialStock?.warehouse && initialStock.warehouse > 0) {
+      newLots.push({
+        id: `lot-${Date.now()}-wh`,
+        branchId: 'branch-khagan-01',
+        locationId: 'loc-wh-01',
+        itemType: 'product',
+        itemId: newProd.id,
+        lotNumber: `LOT-${today.replace(/-/g, '')}-INIT-W`,
+        initialQuantity: initialStock.warehouse,
+        currentQuantity: initialStock.warehouse,
+        receivedDate: today,
+        expiryDate: expiry,
+        unitCost: newProd.costPrice,
+      });
+    }
+
+    if (newLots.length > 0) {
+      setInventoryLots((prev) => {
+        const updatedLots = [...newLots, ...prev];
+        try {
+          const saved = localStorage.getItem('khagan_db_state_v2');
+          const state = saved ? JSON.parse(saved) : {};
+          localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, inventoryLots: updatedLots }));
+        } catch {}
+        return updatedLots;
+      });
+    }
+
     enqueueSyncEvent('product', 'INSERT', newProd.id, { sku: newProd.sku, nameEn: newProd.nameEn });
+
+    // Background sync to Supabase
+    try {
+      supabase.from('products').insert({
+        sku: newProd.sku,
+        barcode: newProd.barcode || null,
+        name_en: newProd.nameEn,
+        name_bn: newProd.nameBn,
+        selling_price: newProd.sellingPrice,
+        cost_price: newProd.costPrice,
+        shelf_life_days: newProd.shelfLifeDays,
+        image_url: newProd.imageUrl || null,
+        is_active: newProd.isActive,
+      }).then();
+    } catch {}
+
+    return newProd;
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, ...updates } : p));
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, products: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('product', 'UPDATE', id, updates);
   };
 
-  const addRawMaterial = (m: Omit<RawMaterial, 'id'>) => {
+  const deleteProduct = (id: string) => {
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, products: updated }));
+      } catch {}
+      return updated;
+    });
+    setInventoryLots((prev) => {
+      const updatedLots = prev.filter((l) => l.itemId !== id);
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, inventoryLots: updatedLots }));
+      } catch {}
+      return updatedLots;
+    });
+    enqueueSyncEvent('product', 'DELETE', id, {});
+  };
+
+  // Recipe CRUD
+  const addRecipe = (r: Omit<Recipe, 'id'>): Recipe => {
+    const newId = `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newRecipe: Recipe = {
+      ...r,
+      id: newId,
+      activeVersion: r.activeVersion || {
+        id: `rv-${Date.now()}`,
+        recipeId: newId,
+        versionNumber: 1,
+        expectedOutputCount: r.expectedOutputCount,
+        expectedOutputWeightKg: r.expectedOutputWeightKg,
+        laborCostPerBatch: 250,
+        overheadCostPerBatch: 150,
+        effectiveDate: new Date().toISOString().slice(0, 10),
+        ingredients: [],
+      },
+    };
+
+    setRecipes((prev) => {
+      const updated = [newRecipe, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, recipes: updated }));
+      } catch {}
+      return updated;
+    });
+
+    enqueueSyncEvent('recipe', 'INSERT', newRecipe.id, { nameEn: newRecipe.nameEn });
+
+    // Background sync to Supabase
+    try {
+      supabase.from('recipes').insert({
+        name_en: newRecipe.nameEn,
+        name_bn: newRecipe.nameBn,
+        standard_batch_size: newRecipe.standardBatchSize || 1,
+        expected_output_count: newRecipe.expectedOutputCount,
+        expected_output_weight_kg: newRecipe.expectedOutputWeightKg,
+        standard_waste_pct: newRecipe.standardWastePct || 2,
+        is_active: newRecipe.isActive,
+      }).then();
+    } catch {}
+
+    return newRecipe;
+  };
+
+  const updateRecipe = (id: string, updates: Partial<Recipe>) => {
+    setRecipes((prev) => {
+      const updated = prev.map((r) => (r.id === id ? { ...r, ...updates } : r));
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, recipes: updated }));
+      } catch {}
+      return updated;
+    });
+    enqueueSyncEvent('recipe', 'UPDATE', id, updates);
+  };
+
+  const deleteRecipe = (id: string) => {
+    setRecipes((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, recipes: updated }));
+      } catch {}
+      return updated;
+    });
+    enqueueSyncEvent('recipe', 'DELETE', id, {});
+  };
+
+  const addRawMaterial = (m: Omit<RawMaterial, 'id'>): RawMaterial => {
     const newMat: RawMaterial = { ...m, id: `rm-${Date.now()}` };
-    setRawMaterials((prev) => [newMat, ...prev]);
+    setRawMaterials((prev) => {
+      const updated = [newMat, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, rawMaterials: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('raw_material', 'INSERT', newMat.id, { code: newMat.code, nameEn: newMat.nameEn });
+    return newMat;
   };
 
   const updateRawMaterial = (id: string, updates: Partial<RawMaterial>) => {
-    setRawMaterials((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    setRawMaterials((prev) => {
+      const updated = prev.map((m) => (m.id === id ? { ...m, ...updates } : m));
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, rawMaterials: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('raw_material', 'UPDATE', id, updates);
   };
 
-  const addSupplier = (s: Omit<Supplier, 'id'>) => {
+  const addSupplier = (s: Omit<Supplier, 'id'>): Supplier => {
     const newSup: Supplier = { ...s, id: `sup-${Date.now()}` };
-    setSuppliers((prev) => [newSup, ...prev]);
+    setSuppliers((prev) => {
+      const updated = [newSup, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, suppliers: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('purchase', 'INSERT', newSup.id, { name: newSup.name });
+    return newSup;
   };
 
-  const addEmployee = (e: Omit<Employee, 'id'>) => {
+  const addEmployee = (e: Omit<Employee, 'id'>): Employee => {
     const newEmp: Employee = { ...e, id: `emp-${Date.now()}` };
-    setEmployees((prev) => [newEmp, ...prev]);
+    setEmployees((prev) => {
+      const updated = [newEmp, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, employees: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('payroll', 'INSERT', newEmp.id, { name: newEmp.fullNameEn });
+    return newEmp;
   };
 
-  const addExpense = (exp: Omit<Expense, 'id'>) => {
+  const addExpense = (exp: Omit<Expense, 'id'>): Expense => {
     const voucherNumber = `VCH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(expenses.length + 1).padStart(3, '0')}`;
     const newExp: Expense = { ...exp, id: `exp-${Date.now()}`, voucherNumber };
-    setExpenses((prev) => [newExp, ...prev]);
+    setExpenses((prev) => {
+      const updated = [newExp, ...prev];
+      try {
+        const saved = localStorage.getItem('khagan_db_state_v2');
+        const state = saved ? JSON.parse(saved) : {};
+        localStorage.setItem('khagan_db_state_v2', JSON.stringify({ ...state, expenses: updated }));
+      } catch {}
+      return updated;
+    });
     enqueueSyncEvent('expense', 'INSERT', newExp.id, { voucherNumber, amount: newExp.amount });
+    return newExp;
   };
 
   return (
@@ -1193,6 +1477,10 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         payrollPeriods,
         addProduct,
         updateProduct,
+        deleteProduct,
+        addRecipe,
+        updateRecipe,
+        deleteRecipe,
         addRawMaterial,
         updateRawMaterial,
         addSupplier,

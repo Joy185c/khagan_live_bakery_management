@@ -43,10 +43,23 @@ export default function AdminProductionPage() {
   const [actualWeightKg, setActualWeightKg] = useState('19.2');
   const [remarks, setRemarks] = useState('');
 
+  React.useEffect(() => {
+    if ((!selectedRecipeId || !recipes.some((r) => r.id === selectedRecipeId)) && recipes.length > 0) {
+      setSelectedRecipeId(recipes[0].id);
+    }
+  }, [recipes, selectedRecipeId]);
+
   const handleCreateBatch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (recipes.length === 0) {
+      alert('উৎপাদন ব্যাচ শুরু করার আগে অনুগ্রহ করে একটি রেসিপি তৈরি করুন।');
+      return;
+    }
     const recipe = recipes.find((r) => r.id === selectedRecipeId);
-    if (!recipe) return;
+    if (!recipe) {
+      alert('অনুগ্রহ করে একটি রেসিপি নির্বাচন করুন।');
+      return;
+    }
 
     const targetProduct = products.find((p) => p.id === recipe.productId);
 
@@ -373,20 +386,33 @@ export default function AdminProductionPage() {
         maxWidth="lg"
       >
         <form onSubmit={handleCreateBatch} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-[#172B22]">রেসিপি নির্বাচন করুন *</label>
-            <select
-              value={selectedRecipeId}
-              onChange={(e) => setSelectedRecipeId(e.target.value)}
-              className="w-full h-10 px-3 text-sm rounded-lg border border-[#D1E2D7] bg-white focus:border-[#176B45] focus:outline-none"
-            >
-              {recipes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nameBn} ({r.nameEn})
-                </option>
-              ))}
-            </select>
-          </div>
+          {recipes.length === 0 ? (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-2">
+              <p className="font-bold">কোনো সক্রিয় রেসিপি বা বিওএম কাঠামো পাওয়া যায়নি!</p>
+              <p>নতুন ব্যাচ উৎপাদন শুরু করার আগে পণ্যের কাঁচামাল অনুপাত সহ একটি রেসিপি তৈরি করতে হবে।</p>
+              <a
+                href="/admin/recipes"
+                className="inline-block px-3 py-1.5 bg-[#176B45] text-white rounded-lg font-semibold hover:bg-[#104C34]"
+              >
+                + রেসিপি তৈরি করুন &rarr;
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-[#172B22]">রেসিপি নির্বাচন করুন *</label>
+              <select
+                value={selectedRecipeId}
+                onChange={(e) => setSelectedRecipeId(e.target.value)}
+                className="w-full h-10 px-3 text-sm rounded-lg border border-[#D1E2D7] bg-white focus:border-[#176B45] focus:outline-none"
+              >
+                {recipes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nameBn} ({r.nameEn})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

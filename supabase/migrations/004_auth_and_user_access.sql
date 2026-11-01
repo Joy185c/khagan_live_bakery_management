@@ -115,3 +115,4 @@ CREATE TRIGGER trg_prevent_profile_delete
 BEFORE DELETE ON profiles
 FOR EACH ROW
 EXECUTE FUNCTION fn_prevent_profile_delete();
+

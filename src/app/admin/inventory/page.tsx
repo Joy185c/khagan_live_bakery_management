@@ -49,6 +49,12 @@ export default function AdminInventoryPage() {
   const [fromLocId, setFromLocId] = useState('loc-wh-01');
   const [toLocId, setToLocId] = useState('loc-shop-01');
 
+  React.useEffect(() => {
+    if ((!transferProductId || !products.some((p) => p.id === transferProductId)) && products.length > 0) {
+      setTransferProductId(products[0].id);
+    }
+  }, [products, transferProductId]);
+
   // New Raw Material Form State
   const [rmNameBn, setRmNameBn] = useState('');
   const [rmNameEn, setRmNameEn] = useState('');
